@@ -1,0 +1,1452 @@
+{
+  "name": "Competitive Intelligence Research Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Competitive Intelligence Research Agent",
+        "formDescription": "Enter a company name to research its competitive landscape and generate a competitor analysis report",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Company Name",
+              "placeholder": "Canva",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        48
+      ],
+      "id": "8b08bc79-76dd-4b04-94a8-62c29ab7e2f2",
+      "name": "On form submission",
+      "webhookId": "df09732a-8570-43ff-8d2a-b88192069227"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e357409b-ffdb-460b-9b07-addcd751c56e",
+              "name": "company",
+              "value": "={{ $json['Company Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "4a300dfb-b805-4876-90be-c4f25843d3c2",
+              "name": "status",
+              "value": "initialized",
+              "type": "string"
+            },
+            {
+              "id": "3132a62f-8ad5-433e-8dd7-88dc8f941191",
+              "name": "retry_count",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "bdfa330c-e550-44f6-ba65-b936e21c98f6",
+              "name": "search_query",
+              "value": "={{ \"top competitors of \" + $json[\"Company Name\"] + \" alternative companies competing with \" + $json[\"Company Name\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        224,
+        48
+      ],
+      "id": "1a40de3a-9486-4fc4-baa1-56545721d281",
+      "name": "Initialize State"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ydc-index.io/v1/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.search_query }}"
+            },
+            {
+              "name": "count",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        48
+      ],
+      "id": "7a40ee6c-9f4d-4952-b8ca-90165c309d56",
+      "name": "Competitor Search",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "UqSy4E5ohoFupwqM",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Competitor Discovery Agent.\n\nYour task is to identify exactly 3 direct competitors of the target company using ONLY the web search evidence provided below.\n\nTARGET COMPANY:\n{{ $('On form submission').first().json['Company Name'] }}\n\nWEB SEARCH EVIDENCE:\n{{ JSON.stringify($('Competitor Search').first().json.results) }}\n\nINSTRUCTIONS:\n1. Identify exactly 3 direct competitors of the TARGET COMPANY.\n2. Use only companies supported by the WEB SEARCH EVIDENCE.\n3. Do not include the target company itself as a competitor.\n4. Do not invent competitors or supporting evidence.\n5. Prefer companies that compete for similar customers, products, or use cases.\n6. For each competitor, provide a concise reason explaining why it is a direct competitor.\n7. Provide a source_url from the supplied evidence supporting the competitor selection.\n8. Preserve the TARGET COMPANY exactly as provided above.\n\nReturn only the required structured output.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1056,
+        48
+      ],
+      "id": "35e06b81-3ab5-46a0-a4ca-e0828d0ccbaa",
+      "name": "Competitor Discovery Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        608,
+        256
+      ],
+      "id": "dfc2a141-e896-4847-9bc2-170ca7fad782",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"target_company\": \"Workday\",\n  \"competitors\": [\n    {\n      \"name\": \"Oracle\",\n      \"reason\": \"Direct competitor in enterprise HCM and ERP software.\",\n      \"source_url\": \"https://example.com/source1\"\n    },\n    {\n      \"name\": \"SAP\",\n      \"reason\": \"Competes with Workday in enterprise HR and ERP solutions.\",\n      \"source_url\": \"https://example.com/source2\"\n    },\n    {\n      \"name\": \"ADP\",\n      \"reason\": \"Competes in payroll, HCM, and workforce management.\",\n      \"source_url\": \"https://example.com/source3\"\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        256
+      ],
+      "id": "0ebb7bc1-bd29-430e-becb-986d33c6cbad",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "output.competitors",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        48
+      ],
+      "id": "63f9f02a-b6ee-4f0d-bac5-f8e801cb5802",
+      "name": "Split Competitors"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ydc-index.io/v1/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json['output.competitors'].name }} competitor of {{ $json.output.target_company }} pricing plans core features target customers market positioning recent news 2026"
+            },
+            {
+              "name": "count",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1648,
+        48
+      ],
+      "id": "f72e961f-db43-4478-aa3b-0a996370e66d",
+      "name": "Competitor Research Search",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "UqSy4E5ohoFupwqM",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Competitor Research Agent.\n\nTARGET COMPANY:\n{{ $('Split Competitors').item.json.output.target_company }}\n\nCOMPETITOR YOU MUST RESEARCH:\n{{ $('Split Competitors').item.json['output.competitors'].name }}\nOUTPUT IDENTITY REQUIREMENTS:\nThe target_company field in your output MUST be:\n{{ $('Split Competitors').item.json.output.target_company }}\n\nThe competitor field in your output MUST exactly match:\n{{ $('Split Competitors').item.json['output.competitors'].name }}\n\nAnalyze ONLY the competitor named above.\n\nThe target company is provided only for comparison context.\nNEVER return the target company as the competitor.\nThe \"competitor\" field in your output MUST exactly match the COMPETITOR YOU MUST RESEARCH value above.\n\nSEARCH EVIDENCE:\n{{ JSON.stringify($json.results) }}\n\nExtract the following information about the COMPETITOR YOU MUST RESEARCH:\n\n1. Pricing and plans\n2. Core features/products\n3. Target customers\n4. Market positioning\n5. Key differentiators relative to the target company\n6. Recent news or developments\n7. Supporting source URLs\n\nGROUNDING RULES:\n- Use ONLY information supported by the supplied search evidence.\n- Do not invent pricing, features, news, or company claims.\n- If pricing cannot be verified from the evidence, return \"Not verified\".\n- If another requested field cannot be verified, return \"Not verified\".\n- Do not substitute the target company for the competitor.\n- Ignore evidence about the target company unless it helps directly compare the named competitor.\n- Include only source URLs that actually appear in the supplied search evidence.\n\nRESEARCH COMPLETENESS:\nReturn \"complete\" if pricing, features, positioning, and recent developments are sufficiently supported.\nReturn \"partial\" if one or more important fields cannot be verified.\nReturn \"insufficient\" if the evidence is too weak to produce a useful profile.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1872,
+        48
+      ],
+      "id": "48ab5edf-debc-4f66-9109-5e11f6ac2a1d",
+      "name": "Competitor Research Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1808,
+        256
+      ],
+      "id": "f64eb838-01c7-4289-b129-e48a3475c1dd",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"target_company\": \"Workday\",\n  \"competitor\": \"Oracle\",\n  \"pricing\": \"Not verified\",\n  \"core_features\": [\n    \"Feature 1\",\n    \"Feature 2\"\n  ],\n  \"target_customers\": \"Enterprise organizations\",\n  \"market_positioning\": \"Enterprise cloud software provider\",\n  \"key_differentiators\": [\n    \"Differentiator 1\",\n    \"Differentiator 2\"\n  ],\n  \"recent_news\": [\n    {\n      \"headline\": \"Recent development\",\n      \"summary\": \"Brief factual summary\",\n      \"source_url\": \"https://example.com/news\"\n    }\n  ],\n  \"sources\": [\n    \"https://example.com/source1\",\n    \"https://example.com/source2\"\n  ],\n  \"research_completeness\": \"partial\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2016,
+        256
+      ],
+      "id": "0892f747-5692-4569-a248-b61732e9041e",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "competitor_research",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        48
+      ],
+      "id": "a93d1c87-c0f2-47f0-8aa2-de339d495a95",
+      "name": "Aggregate Competitor Research"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Competitive Intelligence Analysis Agent.\n\nYour job is to analyze the research profiles for the target company's three competitors and produce a concise, evidence-grounded competitive analysis.\n\nTARGET COMPANY:\n{{ $json.competitor_research[0].output.target_company }}\n\nCOMPETITOR RESEARCH:\n{{ JSON.stringify($json.competitor_research) }}\n\nTASK:\nUsing ONLY the competitor research provided above:\n\n1. Write a concise executive summary of the competitive landscape.\n2. Compare all three competitors on:\n   - Pricing\n   - Core features\n   - Target customers\n   - Market positioning\n   - Key differentiators\n3. Identify the major competitive strengths of each competitor.\n4. Identify potential differentiation opportunities for the target company.\n5. Identify market gaps or opportunities supported by the research.\n6. Summarize the most important recent developments.\n7. Identify any important research limitations.\n\nGROUNDING RULES:\n- Use only the supplied competitor research.\n- Do not invent facts, pricing, features, market claims, or news.\n- If information is unavailable or unverified, explicitly say \"Not verified\".\n- Do not treat unverified information as fact.\n- Do not claim that the target company has a strength or weakness unless the supplied research supports that comparison.\n- Preserve uncertainty from the research profiles.\n- Recommendations and market-gap observations must be clearly framed as analysis based on the supplied evidence.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2464,
+        48
+      ],
+      "id": "89604459-5cc2-42ae-b60d-8f05a84367ac",
+      "name": "Competitive Analysis Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2400,
+        256
+      ],
+      "id": "bdfce57c-7280-4cbe-9724-5878d249dd95",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"target_company\": \"Workday\",\n  \"executive_summary\": \"Concise overview of the competitive landscape.\",\n  \"competitor_comparison\": [\n    {\n      \"competitor\": \"Oracle\",\n      \"pricing\": \"Pricing summary or Not verified\",\n      \"core_strengths\": [\n        \"Strength 1\",\n        \"Strength 2\"\n      ],\n      \"target_customers\": \"Customer segment\",\n      \"market_positioning\": \"Positioning summary\",\n      \"key_differentiators\": [\n        \"Differentiator 1\",\n        \"Differentiator 2\"\n      ]\n    },\n    {\n      \"competitor\": \"SAP\",\n      \"pricing\": \"Pricing summary or Not verified\",\n      \"core_strengths\": [\n        \"Strength 1\"\n      ],\n      \"target_customers\": \"Customer segment\",\n      \"market_positioning\": \"Positioning summary\",\n      \"key_differentiators\": [\n        \"Differentiator 1\"\n      ]\n    },\n    {\n      \"competitor\": \"ADP\",\n      \"pricing\": \"Pricing summary or Not verified\",\n      \"core_strengths\": [\n        \"Strength 1\"\n      ],\n      \"target_customers\": \"Customer segment\",\n      \"market_positioning\": \"Positioning summary\",\n      \"key_differentiators\": [\n        \"Differentiator 1\"\n      ]\n    }\n  ],\n  \"differentiation_opportunities\": [\n    \"Opportunity supported by the research\"\n  ],\n  \"market_gaps\": [\n    \"Potential market gap supported by the research\"\n  ],\n  \"recent_developments\": [\n    \"Important recent development\"\n  ],\n  \"research_limitations\": [\n    \"Important limitation or unverified area\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2608,
+        256
+      ],
+      "id": "cd912b5e-5215-4364-84c1-bbce72aff961",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Research Validation Agent.\n\nYour job is to evaluate the quality and completeness of a competitive intelligence analysis before it is presented to the user.\n\nTARGET COMPANY:\n{{ $json.output.target_company }}\n\nCOMPETITIVE ANALYSIS:\n{{ JSON.stringify($json.output) }}\n\nEvaluate the analysis using these four criteria.\n\nSCORING RUBRIC:\n\n1. COMPETITOR COVERAGE — 25 points\n- 25: Exactly 3 competitors have useful profiles\n- 15: Only 2 competitors have useful profiles\n- 5: Only 1 competitor has useful information\n- 0: No useful competitor profiles\n\n2. DATA COMPLETENESS — 30 points\nEvaluate pricing, core strengths/features, target customers, market positioning, and differentiators.\n- 30: Most important fields are supported for all competitors\n- 20: Some important fields are missing or Not verified\n- 10: Many important fields are missing\n- 0: Research is largely unusable\n\n3. EVIDENCE QUALITY — 25 points\nEvaluate whether claims remain grounded in the supplied research and whether uncertainty is preserved.\n- 25: Claims are well grounded and limitations are clearly acknowledged\n- 15: Generally grounded but some evidence is weak\n- 5: Several unsupported or questionable claims\n- 0: Major unsupported claims or hallucinations\n\n4. RECENCY / NEWS COVERAGE — 20 points\n- 20: Useful recent developments are available for all competitors\n- 12: Recent developments are available for some competitors\n- 5: Very limited recent information\n- 0: No useful recent information\n\nCONFIDENCE SCORE:\nAdd the four scores. The total must be between 0 and 100.\n\nDECISION:\n- confidence_score >= 75 → \"proceed\"\n- confidence_score < 75 → \"human_review\"\n\nIMPORTANT:\nDo not increase the score merely because the writing sounds confident.\nPenalize missing or explicitly unverified information.\nDo not invent evidence that is not present.\nExplain the most important validation issues concisely.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2832,
+        48
+      ],
+      "id": "da244d51-bda4-4a2b-bf25-692a7097a19b",
+      "name": "Research Validation Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2768,
+        256
+      ],
+      "id": "9be06741-55ae-43e7-8e28-8d36450672fb",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"target_company\": \"Workday\",\n  \"competitor_coverage_score\": 25,\n  \"data_completeness_score\": 20,\n  \"evidence_quality_score\": 25,\n  \"recency_score\": 20,\n  \"confidence_score\": 90,\n  \"decision\": \"proceed\",\n  \"validation_issues\": [\n    \"Pricing could not be verified for one competitor.\"\n  ],\n  \"validation_summary\": \"Research is sufficiently complete and grounded to proceed.\"\n}",
+        "autoFix": "={{ false }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2976,
+        256
+      ],
+      "id": "8f8ccbe9-7974-430e-84e9-c3d4f15aabe7",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9ff66215-295d-4f02-b1a9-09ad70129b63",
+              "leftValue": "={{ $json.output.confidence_score }}",
+              "rightValue": 75,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3200,
+        48
+      ],
+      "id": "c665e3a8-979c-4855-afb4-b08066850405",
+      "name": "Confidence Check"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Competitive Intelligence Report Agent.\n\nCreate a polished, concise competitive intelligence briefing for the target company using the validated competitive analysis below.\n\nTARGET COMPANY:\n{{ $('Research Validation Agent').first().json.output.target_company }}\n\nCONFIDENCE SCORE:\n{{ $('Research Validation Agent').first().json.output.confidence_score }}\n\nVALIDATION DECISION:\n{{ $('Research Validation Agent').first().json.output.decision }}\n\nVALIDATION ISSUES:\n{{ JSON.stringify($('Research Validation Agent').first().json.output.validation_issues) }}\n\nHUMAN REVIEW DECISION:\n{{ $json[\"Review Decision\"] || \"No human review required\" }}\n\nLOW CONFIDENCE WARNING:\n{{ $json.human_review_warning || \"None\" }}\n\nCOMPETITIVE ANALYSIS:\n{{ JSON.stringify($('Competitive Analysis Agent').first().json.output) }}\n\nINSTRUCTIONS:\n\n1. Write an executive summary describing the competitive landscape.\n2. Present the three competitors in a clear comparison.\n3. Summarize pricing information, preserving \"Not verified\" wherever pricing could not be confirmed.\n4. Summarize core strengths, target customers, market positioning, and differentiators.\n5. Highlight important recent developments.\n6. Identify potential differentiation opportunities for the target company.\n7. Identify potential market gaps supported by the research.\n8. Include research limitations and validation issues.\n9. Include the overall research confidence score.\n10. Do not invent facts or remove uncertainty from the underlying research.\n\nHUMAN REVIEW HANDLING:\n- If LOW CONFIDENCE WARNING is not \"None\", place that warning prominently at the very beginning of the report.\n- If a human review decision is present, mention that the report proceeded following human review.\n- If no human review was required, do not add a human-review section unnecessarily.\n\nGROUNDING RULES:\n- Use only the supplied competitive analysis and validation results.\n- Never convert \"Not verified\" information into a factual claim.\n- Clearly distinguish evidence-backed findings from strategic interpretation.\n- Do not invent pricing, features, market share, customers, or news.\n- Keep the report concise and decision-oriented.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        3424,
+        -48
+      ],
+      "id": "42507c8b-60e1-4915-9329-5c3f6b4e77a3",
+      "name": "Final Report Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        3360,
+        160
+      ],
+      "id": "4a228623-7a3b-4de6-88ee-2f7eb964c487",
+      "name": "OpenAI Chat Model4",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resume": "form",
+        "formTitle": "Low-Confidence Research Review",
+        "formDescription": "The automated research confidence is below the required threshold. Review the validation issues below and decide whether the competitive intelligence report should proceed.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Review Decision",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Approve and generate report"
+                  },
+                  {
+                    "option": "Continue with warning"
+                  },
+                  {
+                    "option": "Retry research"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3296,
+        432
+      ],
+      "id": "730dd0c6-1fc2-49dd-b48f-473c4a281fcf",
+      "name": "Human Review",
+      "webhookId": "57104789-2b09-493b-a6ee-0cb287ee0c29"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json['Review Decision'] }}",
+                    "rightValue": "Approve and generate report",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "08e155d2-cccf-4bec-8daa-fdbda3ddbceb"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Approve"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "9b28722b-a43e-4cc0-9f17-552421a71980",
+                    "leftValue": "={{ $json['Review Decision'] }}",
+                    "rightValue": "Continue with warning",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Warning"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b1e35743-2706-41ec-a91a-48f1d001909b",
+                    "leftValue": "={{ $json['Review Decision'] }}",
+                    "rightValue": "Retry research",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Retry"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        3520,
+        432
+      ],
+      "id": "aa577a9b-bf32-4214-a1db-ce24f784a036",
+      "name": "Review Decision Router"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9f4164a-0921-4778-b700-bf9549a42ebe",
+              "name": "human_review_warning",
+              "value": "LOW CONFIDENCE WARNING: This report was generated after human review despite the automated research confidence score being below the recommended threshold. Some findings may be incomplete or unverified.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        3744,
+        448
+      ],
+      "id": "1a5ee7aa-d946-4b1b-bd4c-a52f80ed6612",
+      "name": "Add Low Confidence Warning"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "14f50b18-9969-4dae-bf83-bc415a09140c",
+              "name": "=retry_count",
+              "value": "={{ $('Initialize State').first().json.retry_count + 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "8f359759-4327-4df3-8d24-0c16f6bb5298",
+              "name": "retry_requested",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        3792,
+        592
+      ],
+      "id": "fd91dbb1-6882-4991-9a7f-51338b69fcc7",
+      "name": "Increment Retry Count"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://ydc-index.io/v1/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ \"Verify missing evidence for \" + $('Research Validation Agent').first().json.output.target_company + \" competitors Oracle SAP ADP. Focus on pricing, features, target customers, positioning, and recent news. Use authoritative sources.\" }}"
+            },
+            {
+              "name": "count",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        4016,
+        592
+      ],
+      "id": "73d0aa5c-9a41-45a1-b911-f8fa20ea3028",
+      "name": "Retry Research Search",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "UqSy4E5ohoFupwqM",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Retry Synthesis Agent.\n\nA first-pass competitive intelligence analysis was completed, but validation found weak or incomplete evidence. A human requested one additional research attempt.\n\nYour job is to combine:\n1. the original competitive analysis,\n2. the validation issues,\n3. the new retry search evidence,\n\nand produce an updated, evidence-grounded competitive intelligence synthesis.\n\nTARGET COMPANY:\n{{ $('Research Validation Agent').first().json.output.target_company }}\n\nORIGINAL COMPETITIVE ANALYSIS:\n{{ JSON.stringify($('Competitive Analysis Agent').first().json.output) }}\n\nVALIDATION ISSUES FROM FIRST PASS:\n{{ JSON.stringify($('Research Validation Agent').first().json.output.validation_issues) }}\n\nNEW RETRY SEARCH EVIDENCE:\n{{ JSON.stringify($json.results) }}\n\nINSTRUCTIONS:\n1. Re-evaluate only the weak or missing areas identified by validation.\n2. Preserve useful findings from the original analysis.\n3. Use the new retry evidence only where it materially improves or verifies the original analysis.\n4. Do not overwrite a previously supported fact unless the retry evidence clearly contradicts it.\n5. If pricing, features, positioning, target customers, or recent developments still cannot be verified, keep them marked \"Not verified\".\n6. Do not invent facts or treat search-result titles alone as proof.\n7. Clearly identify what improved after retry and what remains unresolved.\n8. Produce an updated competitor comparison for all three competitors.\n9. Mark this as a post-retry synthesis.\n\nReturn a concise but complete updated analysis suitable for generating a final report.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        4240,
+        592
+      ],
+      "id": "13dbab31-d638-438d-87c1-fd0c10aa59d0",
+      "name": "Retry Synthesis Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4176,
+        688
+      ],
+      "id": "acd7a30a-af53-43d3-b65f-5517fccbdee7",
+      "name": "OpenAI Chat Model5",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"target_company\": \"Workday\",\n  \"retry_status\": \"completed\",\n  \"updated_executive_summary\": \"Updated synthesis after one targeted retry.\",\n  \"updated_competitor_comparison\": [\n    {\n      \"competitor\": \"Oracle\",\n      \"pricing\": \"Not verified\",\n      \"core_strengths\": [\"Strength 1\"],\n      \"target_customers\": \"Customer segment\",\n      \"market_positioning\": \"Positioning summary\",\n      \"key_differentiators\": [\"Differentiator 1\"],\n      \"recent_developments\": [\"Development 1\"]\n    },\n    {\n      \"competitor\": \"SAP\",\n      \"pricing\": \"Pricing summary\",\n      \"core_strengths\": [\"Strength 1\"],\n      \"target_customers\": \"Customer segment\",\n      \"market_positioning\": \"Positioning summary\",\n      \"key_differentiators\": [\"Differentiator 1\"],\n      \"recent_developments\": [\"Development 1\"]\n    },\n    {\n      \"competitor\": \"ADP\",\n      \"pricing\": \"Not verified\",\n      \"core_strengths\": [\"Strength 1\"],\n      \"target_customers\": \"Customer segment\",\n      \"market_positioning\": \"Positioning summary\",\n      \"key_differentiators\": [\"Differentiator 1\"],\n      \"recent_developments\": [\"Development 1\"]\n    }\n  ],\n  \"improvements_after_retry\": [\n    \"Evidence improvement\"\n  ],\n  \"remaining_gaps\": [\n    \"Still unresolved issue\"\n  ],\n  \"sources_used_in_retry\": [\n    \"https://example.com/source\"\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        4384,
+        800
+      ],
+      "id": "64f9d54a-ba22-4a50-ae9a-f1b2eff1cbc8",
+      "name": "Structured Output Parser4"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a Competitive Intelligence Report Agent.\n\nA first-pass competitive intelligence analysis did not meet the required confidence threshold. A human reviewer requested one additional targeted research attempt.\n\nUsing the post-retry synthesis below, create the final competitive intelligence briefing.\n\nTARGET COMPANY:\n{{ $json.output.target_company }}\n\nRETRY STATUS:\n{{ $json.output.retry_status }}\n\nPOST-RETRY SYNTHESIS:\n{{ JSON.stringify($json.output) }}\n\nORIGINAL VALIDATION SCORE:\n{{ $('Research Validation Agent').first().json.output.confidence_score }}\n\nORIGINAL VALIDATION ISSUES:\n{{ JSON.stringify($('Research Validation Agent').first().json.output.validation_issues) }}\n\nHUMAN REVIEW DECISION:\nRetry research\n\nINSTRUCTIONS:\n\n1. Begin the report with this notice:\n   \"POST-RETRY REPORT: This report was generated after the initial research did not meet the confidence threshold and a human reviewer requested one additional targeted research attempt.\"\n\n2. Write a concise executive summary of the updated competitive landscape.\n\n3. Compare all three competitors, covering:\n   - Pricing\n   - Core strengths/features\n   - Target customers\n   - Market positioning\n   - Key differentiators\n   - Recent developments\n\n4. Clearly identify what information improved or was verified during the retry.\n\n5. Clearly identify all remaining research gaps.\n\n6. Preserve \"Not verified\" for any information that still could not be confirmed.\n\n7. Include the original validation score and explain that the retry was triggered because the first-pass research required additional verification.\n\n8. Clearly distinguish:\n   - Evidence-backed findings\n   - Strategic interpretation\n   - Remaining uncertainty\n\n9. Do not imply that the retry resolved an issue unless the post-retry synthesis explicitly says it did.\n\n10. Keep the report concise, professional, and decision-oriented for a product manager, founder, executive, or strategy team.\n\nGROUNDING RULES:\n\n- Use only the supplied post-retry synthesis and original validation information.\n- Do not invent pricing, features, customers, market share, positioning, or news.\n- Never convert \"Not verified\" information into a factual claim.\n- Do not remove uncertainty simply to make the report appear more complete.\n- If contradictory evidence remains, explicitly mention the contradiction.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        4608,
+        592
+      ],
+      "id": "8ac0c998-d94a-4286-b547-27c51d5b99b8",
+      "name": "Retry Final Report"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4544,
+        800
+      ],
+      "id": "2fe1d842-7b33-481a-b6bd-8497911e752d",
+      "name": "OpenAI Chat Model6",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a304b49e-d1cb-41ac-b249-30017150d912",
+              "name": "final_report",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        3792,
+        -48
+      ],
+      "id": "69baaffe-17b6-42c1-ab37-8fde929f6397",
+      "name": "Prepare Final Response"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "422a9e23-f7cd-4ab4-965a-1fe45c186b89",
+              "name": "final_report",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        5056,
+        592
+      ],
+      "id": "da34d827-d1fa-4859-97fd-b7851d6b3d72",
+      "name": "Prepare Final Response1"
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Competitive Intelligence Report",
+        "completionMessage": "={{ $json.final_report }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.5,
+      "position": [
+        4176,
+        -64
+      ],
+      "id": "8abb7fbe-588c-440f-b414-ad850b8a9171",
+      "name": "Form",
+      "webhookId": "dd4abc22-14ad-4198-b722-cadfb9b26a57"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an Entity Verification Agent.\n\nYour task is to determine whether the initial web search results clearly refer to the exact company submitted by the user.\n\nSUBMITTED COMPANY:\n{{ $('On form submission').first().json['Company Name'] }}\n\nSEARCH RESULTS:\n{{ JSON.stringify($json.results) }}\n\nVERIFICATION RULES:\n1. Determine whether the search evidence clearly corresponds to the submitted company.\n2. Do not treat a similarly named company as the submitted company.\n3. Do not silently correct, shorten, substitute, or reinterpret the submitted company name.\n4. If the search results primarily refer to a different company, entity_verified must be false.\n5. If there is insufficient evidence that the submitted company exists, entity_verified must be false.\n6. If the company name is ambiguous and the evidence does not clearly resolve which company the user intended, entity_verified must be false.\n7. entity_verified may be true only when the available evidence provides a clear match to the submitted company.\n8. Do not invent company information.\n9. submitted_company must contain exactly the value shown under SUBMITTED COMPANY above.\nSet confidence from 0 to 100 based on the strength of the entity match.\n\nReturn only the required structured output.",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        48
+      ],
+      "id": "c0d1dccd-91fe-4d6f-b1e1-1bdafb378f1b",
+      "name": "Entity Verification Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"submitted_company\": \"Duolingo\",\n  \"matched_company\": \"Duolingo\",\n  \"entity_verified\": true,\n  \"confidence\": 95,\n  \"reason\": \"The search results clearly refer to the submitted company.\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        912,
+        352
+      ],
+      "id": "5732edaf-3c57-4171-b5cd-abd25d00f75a",
+      "name": "Structured Output Parser5"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        656,
+        352
+      ],
+      "id": "0d49e3de-419c-4723-aacd-096434245a2e",
+      "name": "OpenAI Chat Model7",
+      "credentials": {
+        "openAiApi": {
+          "id": "8KRovlUM1iQMdFPJ",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7d747252-13ef-4c9c-ae26-5201ed157630",
+              "leftValue": "={{ $json.output.entity_verified }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1184,
+        192
+      ],
+      "id": "703949b2-8f60-4d38-a4b2-d227c4cad2fe",
+      "name": "Entity Verified?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6979953f-6f37-4c39-bd26-364432da4fe5",
+              "name": "final_report",
+              "value": "={{ \"Unable to confidently identify the company \\\"\" + $('On form submission').first().json['Company Name'] + \"\\\" from the available search evidence. Please verify the company name or provide the company website/domain and try again.\" }}",
+              "type": "string"
+            },
+            {
+              "id": "0c3ec4e8-89e6-4469-9cbb-72f41a78cd1a",
+              "name": "entity_verification_failed",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "36f015d9-34e4-4eba-9e5b-426d8cdf4192",
+              "name": "verification_reason",
+              "value": "={{ $json.output.reason }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        1408,
+        288
+      ],
+      "id": "f4b740ca-75c9-4226-8449-fd3982bb1ce7",
+      "name": "Prepare Entity Verification Failure"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Initialize State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize State": {
+      "main": [
+        [
+          {
+            "node": "Competitor Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Competitor Search": {
+      "main": [
+        [
+          {
+            "node": "Entity Verification Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Competitor Discovery Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Competitor Discovery Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Competitor Discovery Agent": {
+      "main": [
+        [
+          {
+            "node": "Split Competitors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Competitors": {
+      "main": [
+        [
+          {
+            "node": "Competitor Research Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Competitor Research Search": {
+      "main": [
+        [
+          {
+            "node": "Competitor Research Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Competitor Research Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Competitor Research Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Competitor Research Agent": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Competitor Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Competitor Research": {
+      "main": [
+        [
+          {
+            "node": "Competitive Analysis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Competitive Analysis Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Competitive Analysis Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Competitive Analysis Agent": {
+      "main": [
+        [
+          {
+            "node": "Research Validation Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Research Validation Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Research Validation Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research Validation Agent": {
+      "main": [
+        [
+          {
+            "node": "Confidence Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confidence Check": {
+      "main": [
+        [
+          {
+            "node": "Final Report Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Human Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Final Report Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human Review": {
+      "main": [
+        [
+          {
+            "node": "Review Decision Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review Decision Router": {
+      "main": [
+        [
+          {
+            "node": "Final Report Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Add Low Confidence Warning",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Increment Retry Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Low Confidence Warning": {
+      "main": [
+        [
+          {
+            "node": "Final Report Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Retry Count": {
+      "main": [
+        [
+          {
+            "node": "Retry Research Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Research Search": {
+      "main": [
+        [
+          {
+            "node": "Retry Synthesis Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Retry Synthesis Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser4": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Retry Synthesis Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Synthesis Agent": {
+      "main": [
+        [
+          {
+            "node": "Retry Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model6": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Retry Final Report",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Report Agent": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Final Report": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Response": {
+      "main": [
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Response1": {
+      "main": [
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entity Verification Agent": {
+      "main": [
+        [
+          {
+            "node": "Entity Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser5": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Entity Verification Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model7": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Entity Verification Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entity Verified?": {
+      "main": [
+        [
+          {
+            "node": "Competitor Discovery Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Entity Verification Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Entity Verification Failure": {
+      "main": [
+        [
+          {
+            "node": "Form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3fa284a3-606c-4c05-9dc7-9303f1e3c06b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "458018203df959acb97670cb0c085e777bf195f7c05957c6ff5c5e14398b8b20"
+  },
+  "nodeGroups": [],
+  "id": "9k3SVN9BK0hvX2Qd",
+  "tags": []
+}
